@@ -24,6 +24,7 @@
  */
 #include "asio_client_session_tls_impl.h"
 #include "asio_common.h"
+#include <iostream>
 
 namespace nghttp2 {
 namespace asio_http2 {
@@ -44,14 +45,34 @@ session_tls_impl::session_tls_impl(
   }
 }
 
+session_tls_impl::session_tls_impl(
+    boost::asio::io_service &io_service, boost::asio::ssl::context &tls_ctx,
+    const boost::asio::ip::tcp::endpoint &local_endpoint,
+    const std::string &host, const std::string &service,
+    const boost::posix_time::time_duration &connect_timeout)
+    : session_impl(io_service, connect_timeout), socket_(io_service, tls_ctx) {
+  // this callback setting is no effect is
+  // ssl::context::set_verify_mode(boost::asio::ssl::verify_peer) is
+  // not used, which is what we want.
+  socket_.set_verify_callback(boost::asio::ssl::rfc2818_verification(host));
+  auto ssl = socket_.native_handle();
+  if (!util::numeric_host(host.c_str())) {
+    SSL_set_tlsext_host_name(ssl, host.c_str());
+  }
+
+  socket_.lowest_layer().open(local_endpoint.protocol());
+  boost::asio::socket_base::reuse_address option(true);
+  socket_.lowest_layer().set_option(option);
+  socket_.lowest_layer().bind(local_endpoint);
+}
+
 session_tls_impl::~session_tls_impl() {}
 
 void session_tls_impl::start_connect(tcp::resolver::iterator endpoint_it) {
   auto self = std::static_pointer_cast<session_tls_impl>(shared_from_this());
-  boost::asio::async_connect(
-      socket(), endpoint_it,
-      [self](const boost::system::error_code &ec,
-             tcp::resolver::iterator endpoint_it) {
+
+  socket_.lowest_layer().async_connect(
+      *endpoint_it, [self, endpoint_it](const boost::system::error_code &ec) {
         if (self->stopped()) {
           return;
         }

@@ -175,11 +175,27 @@ public:
           boost::asio::ssl::context &tls_context, const std::string &host,
           const std::string &service);
 
+  // Same as previous but with pegged local endpoint
+  session(boost::asio::io_service &io_service,
+          boost::asio::ssl::context &tls_context, 
+          const boost::asio::ip::tcp::endpoint &local_endpoint,
+          const std::string &host,
+          const std::string &service);
+
+
   // Starts HTTP/2 session by connecting to |host| and |service|
   // (e.g., "443") using encrypted SSL/TLS connection with given
   // connect timeout.
   session(boost::asio::io_service &io_service,
           boost::asio::ssl::context &tls_context, const std::string &host,
+          const std::string &service,
+          const boost::posix_time::time_duration &connect_timeout);
+
+  // Same as previous but with pegged local endpoint
+  session(boost::asio::io_service &io_service,
+          boost::asio::ssl::context &tls_context,
+          const boost::asio::ip::tcp::endpoint &local_endpoint,
+          const std::string &host,
           const std::string &service,
           const boost::posix_time::time_duration &connect_timeout);
 
@@ -197,6 +213,9 @@ public:
 
   // Sets read timeout, which defaults to 60 seconds.
   void read_timeout(const boost::posix_time::time_duration &t);
+
+  // Sets ping interval, which defaults to 30 seconds.
+  void ping_interval(const boost::posix_time::time_duration &t);
 
   // Shutdowns connection.
   void shutdown() const;

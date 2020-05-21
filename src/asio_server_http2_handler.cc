@@ -31,6 +31,7 @@
 #include "asio_server_stream.h"
 #include "asio_server_request_impl.h"
 #include "asio_server_response_impl.h"
+#include "asio_verbose.h"
 #include "http2.h"
 #include "util.h"
 #include "template.h"
@@ -72,6 +73,11 @@ int on_header_callback(nghttp2_session *session, const nghttp2_frame *frame,
                        void *user_data) {
   auto handler = static_cast<http2_handler *>(user_data);
   auto stream_id = frame->hd.stream_id;
+
+  if(nghttp2::asio_http2::is_verbose()) {
+    verbose_on_header_callback(session, frame, name, namelen,
+                               value, valuelen, flags, user_data);
+  }
 
   if (frame->hd.type != NGHTTP2_HEADERS ||
       frame->headers.cat != NGHTTP2_HCAT_REQUEST) {
@@ -126,6 +132,10 @@ int on_frame_recv_callback(nghttp2_session *session, const nghttp2_frame *frame,
                            void *user_data) {
   auto handler = static_cast<http2_handler *>(user_data);
   auto strm = handler->find_stream(frame->hd.stream_id);
+
+  if (nghttp2::asio_http2::is_verbose()) {
+    verbose_on_frame_recv_callback(session, frame, user_data);
+  }
 
   switch (frame->hd.type) {
   case NGHTTP2_DATA:
@@ -236,7 +246,8 @@ int on_frame_not_send_callback(nghttp2_session *session,
 
 http2_handler::http2_handler(boost::asio::io_service &io_service,
                              boost::asio::ip::tcp::endpoint ep,
-                             connection_write writefun, serve_mux &mux)
+                             connection_write writefun, serve_mux &mux,
+                             uint32_t max_concurrent_streams)
     : writefun_(writefun),
       mux_(mux),
       io_service_(io_service),
@@ -247,7 +258,8 @@ http2_handler::http2_handler(boost::asio::io_service &io_service,
       inside_callback_(false),
       write_signaled_(false),
       tstamp_cached_(time(nullptr)),
-      formatted_date_(util::http_date(tstamp_cached_)) {}
+      formatted_date_(util::http_date(tstamp_cached_)),
+      max_concurrent_streams_(max_concurrent_streams) {}
 
 http2_handler::~http2_handler() {
   for (auto &p : streams_) {
@@ -293,12 +305,23 @@ int http2_handler::start() {
   nghttp2_session_callbacks_set_on_frame_not_send_callback(
       callbacks, on_frame_not_send_callback);
 
+  if (nghttp2::asio_http2::is_verbose()) {
+    nghttp2_session_callbacks_set_on_frame_send_callback(
+        callbacks, verbose_on_frame_send_callback);
+
+    nghttp2_session_callbacks_set_on_invalid_frame_recv_callback(
+        callbacks, verbose_on_invalid_frame_recv_callback);
+
+    nghttp2_session_callbacks_set_error_callback2(callbacks,
+                                                  verbose_error_callback);
+  }
+
   rv = nghttp2_session_server_new(&session_, callbacks, this);
   if (rv != 0) {
     return -1;
   }
 
-  nghttp2_settings_entry ent{NGHTTP2_SETTINGS_MAX_CONCURRENT_STREAMS, 100};
+  nghttp2_settings_entry ent{NGHTTP2_SETTINGS_MAX_CONCURRENT_STREAMS, max_concurrent_streams_};
   nghttp2_submit_settings(session_, NGHTTP2_FLAG_NONE, &ent, 1);
 
   return 0;

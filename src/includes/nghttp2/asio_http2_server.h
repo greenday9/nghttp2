@@ -204,6 +204,9 @@ public:
   // Sets read timeout, which defaults to 60 seconds.
   void read_timeout(const boost::posix_time::time_duration &t);
 
+  // Set max concurrent streams
+  void max_concurrent_streams(uint32_t max_concurrent_streams);
+
   // Gracefully stop http2 server
   void stop();
 

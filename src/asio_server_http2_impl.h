@@ -49,6 +49,7 @@ public:
   void backlog(int backlog);
   void tls_handshake_timeout(const boost::posix_time::time_duration &t);
   void read_timeout(const boost::posix_time::time_duration &t);
+  void max_concurrent_streams(uint32_t max_concurrent_streams);
   bool handle(std::string pattern, request_cb cb);
   void stop();
   void join();
@@ -63,6 +64,7 @@ private:
   serve_mux mux_;
   boost::posix_time::time_duration tls_handshake_timeout_;
   boost::posix_time::time_duration read_timeout_;
+  uint32_t max_concurrent_streams_;
 };
 
 } // namespace server

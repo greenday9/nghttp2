@@ -55,7 +55,8 @@ class http2_handler : public std::enable_shared_from_this<http2_handler> {
 public:
   http2_handler(boost::asio::io_service &io_service,
                 boost::asio::ip::tcp::endpoint ep, connection_write writefun,
-                serve_mux &mux);
+                serve_mux &mux,
+                uint32_t max_concurrent_streams);
 
   ~http2_handler();
 
@@ -150,6 +151,10 @@ public:
     return 0;
   }
 
+  void terminate() {
+    nghttp2_session_terminate_session(session_, NGHTTP2_NO_ERROR);
+  }
+
 private:
   std::map<int32_t, std::shared_ptr<stream>> streams_;
   connection_write writefun_;
@@ -165,6 +170,7 @@ private:
   bool write_signaled_;
   time_t tstamp_cached_;
   std::string formatted_date_;
+  uint32_t max_concurrent_streams_;
 };
 
 } // namespace server

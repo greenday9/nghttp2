@@ -33,6 +33,7 @@
 #include "template.h"
 #include "util.h"
 #include "http2.h"
+#include "asio_verbose.h"
 
 namespace nghttp2 {
 namespace asio_http2 {
@@ -47,6 +48,7 @@ session_impl::session_impl(
       deadline_(io_service),
       connect_timeout_(connect_timeout),
       read_timeout_(boost::posix_time::seconds(60)),
+      ping_interval_(boost::posix_time::seconds(30)),
       ping_(io_service),
       session_(nullptr),
       data_pending_(nullptr),
@@ -106,7 +108,7 @@ void session_impl::handle_deadline() {
 void handle_ping2(const boost::system::error_code &ec, int) {}
 
 void session_impl::start_ping() {
-  ping_.expires_from_now(boost::posix_time::seconds(30));
+  ping_.expires_from_now(ping_interval_);
   ping_.async_wait(std::bind(&session_impl::handle_ping, shared_from_this(),
                              std::placeholders::_1));
 }
@@ -187,6 +189,11 @@ int on_header_callback(nghttp2_session *session, const nghttp2_frame *frame,
                        void *user_data) {
   auto sess = static_cast<session_impl *>(user_data);
   stream *strm;
+
+  if(nghttp2::asio_http2::is_verbose()) {
+    verbose_on_header_callback(session, frame, name, namelen,
+                               value, valuelen, flags, user_data);
+  }
 
   switch (frame->hd.type) {
   case NGHTTP2_HEADERS: {
@@ -282,6 +289,10 @@ int on_frame_recv_callback(nghttp2_session *session, const nghttp2_frame *frame,
   auto sess = static_cast<session_impl *>(user_data);
   auto strm = sess->find_stream(frame->hd.stream_id);
 
+  if (nghttp2::asio_http2::is_verbose()) {
+    verbose_on_frame_recv_callback(session, frame, user_data);
+  }
+
   switch (frame->hd.type) {
   case NGHTTP2_DATA: {
     if (!strm) {
@@ -327,6 +338,16 @@ int on_frame_recv_callback(nghttp2_session *session, const nghttp2_frame *frame,
 
     strm->request().impl().call_on_push(push_strm->request());
 
+    break;
+  }
+  case NGHTTP2_GOAWAY: {
+//https://github.com/nghttp2/nghttp2/pull/1456
+    if (!sess->stopped()) {
+      auto& cb = sess->on_error();
+      auto ec = make_error_code(
+        static_cast<nghttp2_error>(NGHTTP2_ERR_START_STREAM_NOT_ALLOWED));
+      cb(ec);
+    }
     break;
   }
   }
@@ -381,6 +402,17 @@ bool session_impl::setup_session() {
       callbacks, on_data_chunk_recv_callback);
   nghttp2_session_callbacks_set_on_stream_close_callback(
       callbacks, on_stream_close_callback);
+
+  if (nghttp2::asio_http2::is_verbose()) {
+    nghttp2_session_callbacks_set_on_frame_send_callback(
+        callbacks, verbose_on_frame_send_callback);
+
+    nghttp2_session_callbacks_set_on_invalid_frame_recv_callback(
+        callbacks, verbose_on_invalid_frame_recv_callback);
+
+    nghttp2_session_callbacks_set_error_callback2(callbacks,
+                                                  verbose_error_callback);
+  }
 
   auto rv = nghttp2_session_client_new(&session_, callbacks, this);
   if (rv != 0) {
@@ -752,6 +784,10 @@ bool session_impl::stopped() const { return stopped_; }
 
 void session_impl::read_timeout(const boost::posix_time::time_duration &t) {
   read_timeout_ = t;
+}
+
+void session_impl::ping_interval(const boost::posix_time::time_duration &t) {
+  ping_interval_ = t;
 }
 
 } // namespace client

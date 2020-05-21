@@ -95,6 +95,7 @@ public:
   void do_write();
 
   void read_timeout(const boost::posix_time::time_duration &t);
+  void ping_interval(const boost::posix_time::time_duration &t);
 
   void stop();
   bool stopped() const;
@@ -123,6 +124,7 @@ private:
   boost::asio::deadline_timer deadline_;
   boost::posix_time::time_duration connect_timeout_;
   boost::posix_time::time_duration read_timeout_;
+  boost::posix_time::time_duration ping_interval_;
 
   boost::asio::deadline_timer ping_;
 

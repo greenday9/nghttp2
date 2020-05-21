@@ -41,13 +41,14 @@ http2_impl::http2_impl()
     : num_threads_(1),
       backlog_(-1),
       tls_handshake_timeout_(boost::posix_time::seconds(60)),
-      read_timeout_(boost::posix_time::seconds(60)) {}
+      read_timeout_(boost::posix_time::seconds(60)),
+      max_concurrent_streams_(100) {}
 
 boost::system::error_code http2_impl::listen_and_serve(
     boost::system::error_code &ec, boost::asio::ssl::context *tls_context,
     const std::string &address, const std::string &port, bool asynchronous) {
   server_.reset(
-      new server(num_threads_, tls_handshake_timeout_, read_timeout_));
+      new server(num_threads_, tls_handshake_timeout_, read_timeout_, max_concurrent_streams_));
   return server_->listen_and_serve(ec, tls_context, address, port, backlog_,
                                    mux_, asynchronous);
 }
@@ -63,6 +64,10 @@ void http2_impl::tls_handshake_timeout(
 
 void http2_impl::read_timeout(const boost::posix_time::time_duration &t) {
   read_timeout_ = t;
+}
+
+void http2_impl::max_concurrent_streams(uint32_t max_concurrent_streams) {
+  max_concurrent_streams_ = max_concurrent_streams;
 }
 
 bool http2_impl::handle(std::string pattern, request_cb cb) {

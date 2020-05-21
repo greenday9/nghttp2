@@ -233,6 +233,7 @@ lib_LTLIBRARIES = libnghttp2_asio.la
 libnghttp2_asio_la_SOURCES = \
 	util.cc util.h http2.cc http2.h \
 	tls.cc tls.h \
+	asio_verbose.cc asio_verbose.h \
 	ssl_compat.h \
 	timegm.c timegm.h \
 	asio_common.cc asio_common.h \

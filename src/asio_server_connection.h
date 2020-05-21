@@ -51,6 +51,8 @@
 #include "util.h"
 #include "template.h"
 
+#include <iostream>
+
 #if BOOST_VERSION >= 107000
 #  define GET_IO_SERVICE(s)                                                    \
     ((boost::asio::io_context &)(s).get_executor().context())
@@ -73,14 +75,18 @@ public:
   template <typename... SocketArgs>
   explicit connection(
       serve_mux &mux,
+      std::shared_ptr<bool> &go_away,
       const boost::posix_time::time_duration &tls_handshake_timeout,
       const boost::posix_time::time_duration &read_timeout,
+      uint32_t max_concurrent_streams,
       SocketArgs &&... args)
       : socket_(std::forward<SocketArgs>(args)...),
         mux_(mux),
+        go_away_(go_away),
         deadline_(GET_IO_SERVICE(socket_)),
         tls_handshake_timeout_(tls_handshake_timeout),
         read_timeout_(read_timeout),
+        max_concurrent_streams_(max_concurrent_streams),
         writing_(false),
         stopped_(false) {}
 
@@ -90,7 +96,7 @@ public:
 
     handler_ = std::make_shared<http2_handler>(
         GET_IO_SERVICE(socket_), socket_.lowest_layer().remote_endpoint(ec),
-        [this]() { do_write(); }, mux_);
+        [this]() { do_write(); }, mux_, max_concurrent_streams_);
     if (handler_->start() != 0) {
       stop();
       return;
@@ -114,6 +120,12 @@ public:
 
   void handle_deadline() {
     if (stopped_) {
+      return;
+    }
+
+    if (*go_away_ && !handler_->should_stop()) {
+      handler_->terminate();
+      do_write();
       return;
     }
 
@@ -145,6 +157,10 @@ public:
           if (handler_->on_read(buffer_, bytes_transferred) != 0) {
             stop();
             return;
+          }
+
+          if (*go_away_ && !handler_->should_stop()) {
+            handler_->terminate();
           }
 
           do_write();
@@ -229,6 +245,8 @@ private:
 
   serve_mux &mux_;
 
+  std::shared_ptr<bool> go_away_;
+
   std::shared_ptr<http2_handler> handler_;
 
   /// Buffer for incoming data.
@@ -239,6 +257,7 @@ private:
   boost::asio::deadline_timer deadline_;
   boost::posix_time::time_duration tls_handshake_timeout_;
   boost::posix_time::time_duration read_timeout_;
+  uint32_t max_concurrent_streams_;
 
   bool writing_;
   bool stopped_;

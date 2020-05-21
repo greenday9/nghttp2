@@ -42,6 +42,9 @@ namespace nghttp2 {
 
 namespace asio_http2 {
 
+void set_verbose(bool debug);
+bool is_verbose();
+
 struct header_value {
   // header field value
   std::string value;
