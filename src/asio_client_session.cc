@@ -70,6 +70,30 @@ session::session(boost::asio::io_service &io_service,
   impl_->start_resolve(host, service);
 }
 
+session::session(boost::asio::io_service &io_service, const std::string &host,
+                 const boost::asio::ip::tcp::endpoint &remote_endpoint,
+                 const std::string &service,
+                 const boost::posix_time::time_duration &connect_timeout)
+    : impl_(std::make_shared<session_tcp_impl>(io_service, host, service,
+                                               connect_timeout)) {
+  // bypass DNS resolve...
+  tcp::resolver::iterator iter = tcp::resolver::results_type::create(remote_endpoint, host, service);
+  impl_->start_connect(iter);
+}
+
+session::session(boost::asio::io_service &io_service,
+                 const boost::asio::ip::tcp::endpoint &local_endpoint,
+                 const std::string &host, 
+                 const boost::asio::ip::tcp::endpoint &remote_endpoint,
+                 const std::string &service,
+                 const boost::posix_time::time_duration &connect_timeout)
+    : impl_(std::make_shared<session_tcp_impl>(io_service, local_endpoint, host,
+                                               service, connect_timeout)) {
+  // bypass DNS resolve...
+  tcp::resolver::iterator iter = tcp::resolver::results_type::create(remote_endpoint, host, service);
+  impl_->start_connect(iter);
+}
+
 session::session(boost::asio::io_service &io_service,
                  boost::asio::ssl::context &tls_ctx, const std::string &host,
                  const std::string &service)
@@ -106,6 +130,32 @@ session::session(boost::asio::io_service &io_service,
     : impl_(std::make_shared<session_tls_impl>(io_service, tls_ctx, local_endpoint, host,
                                                service, connect_timeout)) {
   impl_->start_resolve(host, service);
+}
+
+session::session(boost::asio::io_service &io_service,
+                 boost::asio::ssl::context &tls_ctx, const std::string &host,
+                 const boost::asio::ip::tcp::endpoint &remote_endpoint,
+                 const std::string &service,
+                 const boost::posix_time::time_duration &connect_timeout)
+    : impl_(std::make_shared<session_tls_impl>(io_service, tls_ctx, host,
+                                               service, connect_timeout)) {
+  // bypass DNS resolve...
+  tcp::resolver::iterator iter = tcp::resolver::results_type::create(remote_endpoint, host, service);
+  impl_->start_connect(iter);
+}
+
+session::session(boost::asio::io_service &io_service,
+                 boost::asio::ssl::context &tls_ctx,
+                 const boost::asio::ip::tcp::endpoint &local_endpoint,
+                 const std::string &host,
+                 const boost::asio::ip::tcp::endpoint &remote_endpoint,
+                 const std::string &service,
+                 const boost::posix_time::time_duration &connect_timeout)
+    : impl_(std::make_shared<session_tls_impl>(io_service, tls_ctx, local_endpoint, host,
+                                               service, connect_timeout)) {
+  // bypass DNS resolve...
+  tcp::resolver::iterator iter = tcp::resolver::results_type::create(remote_endpoint, host, service);
+  impl_->start_connect(iter);
 }
 
 session::~session() {}

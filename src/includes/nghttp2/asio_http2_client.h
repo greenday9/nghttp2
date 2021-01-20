@@ -169,6 +169,22 @@ public:
           const boost::posix_time::time_duration &connect_timeout);
 
   // Starts HTTP/2 session by connecting to |host| and |service|
+  // (e.g., "80") using clear text TCP connection with given connect
+  // timeout and IP address (to skip DNS).
+  session(boost::asio::io_service &io_service, const std::string &host,
+          const boost::asio::ip::tcp::endpoint &remote_endpoint,
+          const std::string &service,
+          const boost::posix_time::time_duration &connect_timeout);
+
+  // Same as previous but with pegged local endpoint
+  session(boost::asio::io_service &io_service,
+          const boost::asio::ip::tcp::endpoint &local_endpoint,
+          const std::string &host, 
+          const boost::asio::ip::tcp::endpoint &remote_endpoint,
+          const std::string &service,
+          const boost::posix_time::time_duration &connect_timeout);
+
+  // Starts HTTP/2 session by connecting to |host| and |service|
   // (e.g., "443") using encrypted SSL/TLS connection with connect
   // timeout 60 seconds.
   session(boost::asio::io_service &io_service,
@@ -196,6 +212,25 @@ public:
           boost::asio::ssl::context &tls_context,
           const boost::asio::ip::tcp::endpoint &local_endpoint,
           const std::string &host,
+          const std::string &service,
+          const boost::posix_time::time_duration &connect_timeout);
+
+
+  // Starts HTTP/2 session by connecting to |host| and |service|
+  // (e.g., "443") using encrypted SSL/TLS connection with given
+  // connect timeout and IP address (to skip DNS).
+  session(boost::asio::io_service &io_service,
+          boost::asio::ssl::context &tls_context, const std::string &host,
+          const boost::asio::ip::tcp::endpoint &remote_endpoint,
+          const std::string &service,
+          const boost::posix_time::time_duration &connect_timeout);
+
+  // Same as previous but with pegged local endpoint
+  session(boost::asio::io_service &io_service,
+          boost::asio::ssl::context &tls_context,
+          const boost::asio::ip::tcp::endpoint &local_endpoint,
+          const std::string &host,
+          const boost::asio::ip::tcp::endpoint &remote_endpoint,
           const std::string &service,
           const boost::posix_time::time_duration &connect_timeout);
 
