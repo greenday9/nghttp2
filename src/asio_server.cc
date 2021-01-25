@@ -144,6 +144,9 @@ void server::start_accept(boost::asio::ssl::context &tls_context,
         if (!e) {
           new_connection->socket().lowest_layer().set_option(
               tcp::no_delay(true));
+
+          set_ip_tos_option(new_connection->socket().lowest_layer());
+
           new_connection->start_tls_handshake_deadline();
           new_connection->socket().async_handshake(
               boost::asio::ssl::stream_base::server,
@@ -181,6 +184,9 @@ void server::start_accept(tcp::acceptor &acceptor, serve_mux &mux) {
                                     const boost::system::error_code &e) {
         if (!e) {
           new_connection->socket().set_option(tcp::no_delay(true));
+
+          set_ip_tos_option(new_connection->socket());
+
           new_connection->start_read_deadline();
           new_connection->start();
         }

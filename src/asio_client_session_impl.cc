@@ -133,6 +133,11 @@ void session_impl::connected(tcp::resolver::iterator endpoint_it) {
 
   socket().set_option(boost::asio::ip::tcp::no_delay(true));
 
+  // This is not the best place to set IP_TOS.  However, there is difficulty in determining
+  // the protocol prior to completing the connect.
+
+  set_ip_tos_option(socket());
+
   do_write();
   do_read();
 

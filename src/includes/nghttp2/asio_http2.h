@@ -45,6 +45,10 @@ namespace asio_http2 {
 void set_verbose(bool debug);
 bool is_verbose();
 
+// set/get the Type-Of-Service (TOS) field that is sent with every IP packet
+void set_ip_tos(int ipTos);
+int get_ip_tos();
+
 struct header_value {
   // header field value
   std::string value;

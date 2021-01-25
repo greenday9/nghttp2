@@ -31,8 +31,20 @@
 #include "template.h"
 #include "http2.h"
 
+static int gIpTos = 0;
+
 namespace nghttp2 {
 namespace asio_http2 {
+
+void set_ip_tos(int ipTos)
+{
+  gIpTos = ipTos;
+}
+
+int get_ip_tos()
+{
+  return gIpTos;
+}
 
 class nghttp2_category_impl : public boost::system::error_category {
 public:

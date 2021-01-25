@@ -37,6 +37,25 @@ namespace nghttp2 {
 
 namespace asio_http2 {
 
+template <typename socket_type>
+void set_ip_tos_option(socket_type& socket) {
+  if(get_ip_tos()) {
+    try {
+      if(socket.local_endpoint().protocol() == boost::asio::ip::tcp::v4()) {
+        boost::asio::detail::socket_option::integer< IPPROTO_IP, IP_TOS > optionTosV4(get_ip_tos());
+        socket.set_option(optionTosV4);
+      }
+      else {
+        boost::asio::detail::socket_option::integer< IPPROTO_IPV6, IPV6_TCLASS  > optionTosV6(get_ip_tos());
+        socket.set_option(optionTosV6);
+      }
+    }
+    catch( const boost::system::system_error& ex ) {
+      // eat exception.  assume socket cleanup will be performed elsewhere.
+    }
+  }
+}
+
 boost::system::error_code make_error_code(nghttp2_error ev);
 
 boost::system::error_code make_error_code(nghttp2_asio_error ev);
